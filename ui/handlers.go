@@ -33,8 +33,12 @@ func (m *Model) runOnStart(task config.Task) {
 		return
 	}
 
+	if m.lifecycle == nil {
+		m.lifecycle = &lifecycleState{}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), actions.CommandTimeout)
-	m.startCancel = cancel
+	m.lifecycle.startCancel = cancel
 
 	go func() {
 		defer cancel()
@@ -44,10 +48,12 @@ func (m *Model) runOnStart(task config.Task) {
 
 // cancelOnStart cancels any still-running onStart commands of the current session.
 func (m *Model) cancelOnStart() {
-	if m.startCancel != nil {
-		m.startCancel()
-		m.startCancel = nil
+	if m.lifecycle == nil || m.lifecycle.startCancel == nil {
+		return
 	}
+
+	m.lifecycle.startCancel()
+	m.lifecycle.startCancel = nil
 }
 
 func (m *Model) handleKeys(msg tea.KeyMsg) tea.Cmd {

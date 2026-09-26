@@ -42,7 +42,7 @@ type Model struct {
 	cyclePosition    int             // for long break tracking
 	commandsWg       *sync.WaitGroup // post commands wg
 	commandsCancel   context.CancelFunc
-	startCancel      context.CancelFunc // active onStart commands cancel
+	lifecycle        *lifecycleState // shared mutable session lifecycle (survives value copies)
 
 	// ASCII art
 	useTimerArt     bool
@@ -82,7 +82,7 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 		repo = db.NewSessionRepo(database)
 	}
 
-	m := Model{
+	return Model{
 		progressBar:   progress.New(progress.WithDefaultGradient()),
 		confirmDialog: confirm.New(),
 		help:          help.New(),
@@ -97,6 +97,7 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 		sessionSummary:  sessionSummary,
 		longBreak:       cfg.LongBreak,
 		cyclePosition:   1,
+		lifecycle:       &lifecycleState{},
 
 		useTimerArt:     cfg.ASCIIArt.Enabled,
 		timerFont:       timerFont,
@@ -104,10 +105,11 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 
 		repo: repo,
 	}
+}
 
-	m.runOnStart(*task)
-
-	return m
+// lifecycleState holds mutable session lifecycle data shared across Model copies.
+type lifecycleState struct {
+	startCancel context.CancelFunc // active onStart commands cancel
 }
 
 type SessionState byte

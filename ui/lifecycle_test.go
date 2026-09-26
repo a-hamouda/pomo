@@ -66,6 +66,7 @@ func newLifecycleTestModel(task config.Task) Model {
 		currentTask:     task,
 		onSessionEnd:    "ask",
 		longBreak:       config.LongBreak{Enabled: false},
+		lifecycle:       &lifecycleState{},
 	}
 }
 
@@ -98,7 +99,7 @@ func settleProgressBar(t *testing.T, m *Model) {
 	assert.Equal(t, 1.0, m.progressBar.Percent(), "progress bar should be complete")
 }
 
-func TestOnStartRunsOnNewModel(t *testing.T) {
+func TestOnStartRunsOnInit(t *testing.T) {
 	var startLog, postLog callLog
 	stubRunners(t, &startLog, &postLog)
 	saveConfig(t)
@@ -111,12 +112,15 @@ func TestOnStartRunsOnNewModel(t *testing.T) {
 	}
 	config.C.Work = task
 
+	// constructing the model must not trigger external side effects
 	m := NewModel(config.WorkTask, config.Config{
 		OnSessionEnd: "ask",
 		LongBreak:    config.LongBreak{Enabled: false},
 	})
-	_ = m
+	assert.Equal(t, 0, startLog.count(), "NewModel must not invoke onStart")
 
+	// the Bubble Tea startup boundary starts the session
+	m.Init()
 	assert.Eventually(t, func() bool { return startLog.count() == 1 }, 3*time.Second, 10*time.Millisecond,
 		"initial session should invoke onStart exactly once")
 	assert.Equal(t, 0, postLog.count(), "initial session must not invoke onEnd")
@@ -198,8 +202,26 @@ func TestOnStartCancelledOnNextSession(t *testing.T) {
 }
 
 func TestOnStartCancelledOnCompletion(t *testing.T) {
+	// blocking start stub: the context can only be cancelled by the
+	// session lifecycle, not by the command finishing on its own
+	origStart, origPost := runStartCommands, runPostActions
+	release := make(chan struct{})
 	var startLog, postLog callLog
-	stubRunners(t, &startLog, &postLog)
+	runStartCommands = func(ctx context.Context, task config.Task) {
+		startLog.record(ctx, task)
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}
+	runPostActions = func(ctx context.Context, task config.Task) *sync.WaitGroup {
+		postLog.record(ctx, task)
+		return &sync.WaitGroup{}
+	}
+	t.Cleanup(func() {
+		runStartCommands, runPostActions = origStart, origPost
+		close(release)
+	})
 
 	task := config.Task{
 		Title:    "work",
@@ -208,7 +230,10 @@ func TestOnStartCancelledOnCompletion(t *testing.T) {
 		OnEnd:    [][]string{{"echo", "bye"}},
 	}
 	m := newLifecycleTestModel(task)
-	m.startSession(config.WorkTask, task, false)
+
+	// start through the Bubble Tea startup boundary (value-receiver Init
+	// registers cancellation in the shared lifecycle state)
+	m.Init()
 	assert.Eventually(t, func() bool { return startLog.count() == 1 }, 3*time.Second, 10*time.Millisecond)
 
 	m.handleCompletion()

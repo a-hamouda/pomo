@@ -10,6 +10,7 @@ import (
 )
 
 func (m Model) Init() tea.Cmd {
+	m.runOnStart(m.currentTask)
 	return m.timer.Init()
 }
 
