@@ -228,7 +228,7 @@ work:
     # - [powershell, start, work-done.mp3] # Windows
 ```
 
-> Commands run with a 5 second timeout and are automatically cancelled when starting the next session.
+> `onStart` and `onEnd` commands run with a 5 second timeout. Starting the next session cancels any still-running commands from the previous session (`onEnd` commands keep running in the background when `onSessionEnd` is `"start"`, bounded by the timeout).
 
 ### Key Bindings
 

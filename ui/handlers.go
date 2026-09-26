@@ -21,17 +21,33 @@ type (
 	commandsDoneMsg struct{}
 )
 
-// ponytail: fire-and-forget with own timeout, no wg tracking; track via wg if onStart ordering ever matters
-var runOnStart = func(task config.Task) {
+var (
+	runStartCommands = actions.RunStartActions
+	runPostActions   = actions.RunPostActions
+)
+
+// runOnStart runs the task's onStart commands in the background.
+// The commands are cancelled when the session ends or another session begins.
+func (m *Model) runOnStart(task config.Task) {
 	if len(task.OnStart) == 0 {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), actions.CommandTimeout)
+	m.startCancel = cancel
+
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), actions.CommandTimeout)
 		defer cancel()
-		actions.RunStartActions(ctx, task)
+		runStartCommands(ctx, task)
 	}()
+}
+
+// cancelOnStart cancels any still-running onStart commands of the current session.
+func (m *Model) cancelOnStart() {
+	if m.startCancel != nil {
+		m.startCancel()
+		m.startCancel = nil
+	}
 }
 
 func (m *Model) handleKeys(msg tea.KeyMsg) tea.Cmd {
@@ -186,9 +202,11 @@ func (m *Model) handleCompletion() tea.Cmd {
 
 	m.recordSession()
 
+	m.cancelOnStart()
+
 	ctx, cancel := context.WithTimeout(context.Background(), actions.CommandTimeout)
 	m.commandsCancel = cancel
-	m.commandsWg = actions.RunPostActions(ctx, m.currentTask)
+	m.commandsWg = runPostActions(ctx, m.currentTask)
 
 	// continue after the completion according to config
 	switch m.onSessionEnd {
@@ -263,6 +281,9 @@ func (m *Model) startSession(taskType config.TaskType, task config.Task, isShort
 		m.commandsCancel()
 	}
 
+	// a new session ends the previous one: its onStart must not outlive it
+	m.cancelOnStart()
+
 	// clean up previous commands state
 	m.commandsWg, m.commandsCancel = nil, nil
 
@@ -275,7 +296,7 @@ func (m *Model) startSession(taskType config.TaskType, task config.Task, isShort
 	m.timer = timer.New(m.currentTask.Duration)
 
 	m.sessionState = Running
-	runOnStart(task)
+	m.runOnStart(task)
 	return tea.Batch(
 		m.progressBar.SetPercent(0.0),
 		m.timer.Start(),
@@ -345,6 +366,8 @@ func (m *Model) Quit() tea.Cmd {
 	if m.sessionState == WaitingForCommands {
 		log.Println("force quitting...")
 
+		m.cancelOnStart()
+
 		// cancel any running commands
 		if m.commandsCancel != nil {
 			m.commandsCancel()
@@ -353,6 +376,8 @@ func (m *Model) Quit() tea.Cmd {
 		m.sessionState = Quitting
 		return tea.Quit
 	}
+
+	m.cancelOnStart()
 
 	// wait for any running post actions to complete before quitting
 	if m.commandsWg != nil {

@@ -42,6 +42,7 @@ type Model struct {
 	cyclePosition    int             // for long break tracking
 	commandsWg       *sync.WaitGroup // post commands wg
 	commandsCancel   context.CancelFunc
+	startCancel      context.CancelFunc // active onStart commands cancel
 
 	// ASCII art
 	useTimerArt     bool
@@ -81,7 +82,7 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 		repo = db.NewSessionRepo(database)
 	}
 
-	return Model{
+	m := Model{
 		progressBar:   progress.New(progress.WithDefaultGradient()),
 		confirmDialog: confirm.New(),
 		help:          help.New(),
@@ -103,6 +104,10 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 
 		repo: repo,
 	}
+
+	m.runOnStart(*task)
+
+	return m
 }
 
 type SessionState byte

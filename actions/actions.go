@@ -68,7 +68,7 @@ func sendNotification(notification config.Notification) {
 
 // runs the commands specified in the task
 func runCommands(ctx context.Context, cmds [][]string) {
-	log.Println("running post commands")
+	log.Println("running commands")
 
 	for _, cmd := range cmds {
 		c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
