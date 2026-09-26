@@ -21,6 +21,19 @@ type (
 	commandsDoneMsg struct{}
 )
 
+// ponytail: fire-and-forget with own timeout, no wg tracking; track via wg if onStart ordering ever matters
+var runOnStart = func(task config.Task) {
+	if len(task.OnStart) == 0 {
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), actions.CommandTimeout)
+		defer cancel()
+		actions.RunStartActions(ctx, task)
+	}()
+}
+
 func (m *Model) handleKeys(msg tea.KeyMsg) tea.Cmd {
 	if m.sessionState == ShowingConfirm {
 		return m.confirmDialog.HandleKeys(msg)
@@ -262,6 +275,7 @@ func (m *Model) startSession(taskType config.TaskType, task config.Task, isShort
 	m.timer = timer.New(m.currentTask.Duration)
 
 	m.sessionState = Running
+	runOnStart(task)
 	return tea.Batch(
 		m.progressBar.SetPercent(0.0),
 		m.timer.Start(),

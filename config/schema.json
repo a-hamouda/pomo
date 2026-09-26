@@ -90,7 +90,20 @@
           "$ref": "#/definitions/notification",
           "description": "Desktop notification settings"
         },
-        "then": {
+        "onStart": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Command and arguments"
+          },
+          "description": "Commands to run when session starts",
+          "examples": [[["spd-say", "Focus!"]]]
+        },
+        "onEnd": {
           "type": "array",
           "items": {
             "type": "array",

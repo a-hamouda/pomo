@@ -84,10 +84,12 @@ longBreak:
 	assert.Equal(t, defaults.ASCIIArt.Font, C.ASCIIArt.Font)
 }
 
-func TestLoadConfigThenCommands(t *testing.T) {
+func TestLoadConfigOnStartOnEndCommands(t *testing.T) {
 	configYAML := `
 work:
-  then:
+  onStart:
+    - ["echo", "Work session started"]
+  onEnd:
     - ["echo", "Work session completed"]
     - ["osascript", "-e", "display notification \"Break time!\""]
     - ["python", "~/scripts/work-done.py"]
@@ -96,13 +98,19 @@ work:
 	setupViper()
 	writeAndLoadConfig(t, configYAML)
 
-	// Test work then commands
-	expectedThen := [][]string{
+	// Test work onStart commands
+	expectedOnStart := [][]string{
+		{"echo", "Work session started"},
+	}
+	assert.Equal(t, expectedOnStart, C.Work.OnStart, "Work onStart commands should match")
+
+	// Test work onEnd commands
+	expectedOnEnd := [][]string{
 		{"echo", "Work session completed"},
 		{"osascript", "-e", "display notification \"Break time!\""},
 		{"python", homeDir + "/scripts/work-done.py"},
 	}
-	assert.Equal(t, expectedThen, C.Work.Then, "Work then commands should match")
+	assert.Equal(t, expectedOnEnd, C.Work.OnEnd, "Work onEnd commands should match")
 }
 
 func TestLoadConfigAllFieldsComprehensive(t *testing.T) {
@@ -121,7 +129,9 @@ work:
     title: Work Complete! 🎉
     message: Time for a well-deserved break
     icon: C:\User\image.svg
-  then:
+  onStart:
+    - [echo, "work started"]
+  onEnd:
     - [echo, "work completed"]
     - [notify-send, "Break time!"]
 break:
@@ -133,7 +143,9 @@ break:
     title: Break Over! 😴
     message: Back to productive work
     icon: /abs/path/break-icon.png
-  then:
+  onStart:
+    - ["echo", "break started"]
+  onEnd:
     - ["echo", "break finished"]
 longBreak:
   enabled: false
@@ -155,8 +167,10 @@ longBreak:
 	// work task
 	assert.Equal(t, 45*time.Minute, C.Work.Duration, "Work duration should be 45 minutes")
 	assert.Equal(t, "Deep work session", C.Work.Title, "Work title should match")
-	expectedWorkThen := [][]string{{"echo", "work completed"}, {"notify-send", "Break time!"}}
-	assert.Equal(t, expectedWorkThen, C.Work.Then, "Work then commands should match")
+	expectedWorkOnStart := [][]string{{"echo", "work started"}}
+	assert.Equal(t, expectedWorkOnStart, C.Work.OnStart, "Work onStart commands should match")
+	expectedWorkOnEnd := [][]string{{"echo", "work completed"}, {"notify-send", "Break time!"}}
+	assert.Equal(t, expectedWorkOnEnd, C.Work.OnEnd, "Work onEnd commands should match")
 
 	// work notification
 	assert.True(t, C.Work.Notification.Enabled, "Work notification should be enabled")
@@ -168,8 +182,10 @@ longBreak:
 	// break task
 	assert.Equal(t, 15*time.Minute, C.Break.Duration, "Break duration should be 15 minutes")
 	assert.Equal(t, "Relaxation break", C.Break.Title, "Break title should match")
-	expectedBreakThen := [][]string{{"echo", "break finished"}}
-	assert.Equal(t, expectedBreakThen, C.Break.Then, "Break then commands should match")
+	expectedBreakOnStart := [][]string{{"echo", "break started"}}
+	assert.Equal(t, expectedBreakOnStart, C.Break.OnStart, "Break onStart commands should match")
+	expectedBreakOnEnd := [][]string{{"echo", "break finished"}}
+	assert.Equal(t, expectedBreakOnEnd, C.Break.OnEnd, "Break onEnd commands should match")
 
 	// break notification
 	assert.False(t, C.Break.Notification.Enabled, "Break notification should be disabled")
@@ -301,7 +317,8 @@ func assertConfigMatches(t *testing.T, expected Config, actual Config) {
 	// work task assertions
 	assert.Equal(t, expected.Work.Duration, actual.Work.Duration)
 	assert.Equal(t, expected.Work.Title, actual.Work.Title)
-	assert.Equal(t, expected.Work.Then, actual.Work.Then)
+	assert.Equal(t, expected.Work.OnStart, actual.Work.OnStart)
+	assert.Equal(t, expected.Work.OnEnd, actual.Work.OnEnd)
 
 	// work notification assertions
 	assert.Equal(t, expected.Work.Notification.Enabled, actual.Work.Notification.Enabled)
@@ -315,7 +332,8 @@ func assertConfigMatches(t *testing.T, expected Config, actual Config) {
 	// break task assertions
 	assert.Equal(t, expected.Break.Duration, actual.Break.Duration)
 	assert.Equal(t, expected.Break.Title, actual.Break.Title)
-	assert.Equal(t, expected.Break.Then, actual.Break.Then)
+	assert.Equal(t, expected.Break.OnStart, actual.Break.OnStart)
+	assert.Equal(t, expected.Break.OnEnd, actual.Break.OnEnd)
 
 	// break notification assertions
 	assert.Equal(t, expected.Break.Notification.Enabled, actual.Break.Notification.Enabled)

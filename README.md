@@ -198,7 +198,7 @@ break:
   duration: 5m
 
   # will run after the session ends
-  then:
+  onEnd:
     - [spd-say, "Back to work!"]
 
 longBreak:
@@ -216,11 +216,13 @@ Check out [pomo.yaml](pomo.yaml) for a full example with all options.
 
 ### Sound Notifications
 
-You can play sounds when sessions complete by running commands in the `then` section.
+You can play sounds when sessions complete by running commands in the `onEnd` section.
 
 ```yaml
 work:
-  then:
+  onStart:
+    - [paplay, ~/sounds/work-start.mp3] # Linux
+  onEnd:
     - [paplay, ~/sounds/work-done.mp3] # Linux
     # - [afplay, ~/sounds/work-done.mp3] # macOS
     # - [powershell, start, work-done.mp3] # Windows

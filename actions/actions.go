@@ -14,7 +14,7 @@ import (
 
 var CommandTimeout = 5 * time.Second
 
-// RunPostActions sends task notification and runs post commands using goroutines
+// RunPostActions sends task notification and runs end commands using goroutines
 //
 // returns a wait group to wait for their completion
 func RunPostActions(ctx context.Context, task config.Task) *sync.WaitGroup {
@@ -25,10 +25,15 @@ func RunPostActions(ctx context.Context, task config.Task) *sync.WaitGroup {
 	})
 
 	wg.Go(func() {
-		runPostCommands(ctx, task.Then)
+		runCommands(ctx, task.OnEnd)
 	})
 
 	return &wg
+}
+
+// RunStartActions runs start commands using the same mechanism as end commands.
+func RunStartActions(ctx context.Context, task config.Task) {
+	runCommands(ctx, task.OnStart)
 }
 
 // sends a notification using the beeep package
@@ -61,8 +66,8 @@ func sendNotification(notification config.Notification) {
 	}
 }
 
-// runs the post commands specified in the task
-func runPostCommands(ctx context.Context, cmds [][]string) {
+// runs the commands specified in the task
+func runCommands(ctx context.Context, cmds [][]string) {
 	log.Println("running post commands")
 
 	for _, cmd := range cmds {

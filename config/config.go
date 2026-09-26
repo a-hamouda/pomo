@@ -34,7 +34,8 @@ type Notification struct {
 type Task struct {
 	Title        string
 	Duration     time.Duration
-	Then         [][]string
+	OnStart      [][]string
+	OnEnd        [][]string
 	Notification Notification
 }
 
@@ -141,8 +142,10 @@ func LoadConfig() error {
 	C.Break.Notification.Icon = expandPath(C.Break.Notification.Icon, homedir)
 
 	// expand post command paths
-	C.Work.Then = expandCommands(C.Work.Then, homedir)
-	C.Break.Then = expandCommands(C.Break.Then, homedir)
+	C.Work.OnStart = expandCommands(C.Work.OnStart, homedir)
+	C.Break.OnStart = expandCommands(C.Break.OnStart, homedir)
+	C.Work.OnEnd = expandCommands(C.Work.OnEnd, homedir)
+	C.Break.OnEnd = expandCommands(C.Break.OnEnd, homedir)
 
 	return nil
 }
