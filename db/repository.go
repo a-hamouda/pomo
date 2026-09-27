@@ -70,25 +70,9 @@ func (r *SessionRepo) GetAllTimeStats() (AllTimeStats, error) {
 	return totalStats, nil
 }
 
-// GetWeeklyStats retrieves daily work duration statistics for the past 7 days.
-func (r *SessionRepo) GetWeeklyStats() ([]DailyStat, error) {
-	today := time.Now()
-	firstDay := today.AddDate(0, 0, -6)
-
-	return r.getDailyStats(firstDay, today)
-}
-
-// GetLastMonthsStats retrieves daily work duration statistics for the past specified number of months.
-func (r *SessionRepo) GetLastMonthsStats(numberOfMonths int) ([]DailyStat, error) {
-	today := time.Now()
-	firstDay := today.AddDate(0, -numberOfMonths, -today.Day()+1)
-
-	return r.getDailyStats(firstDay, today)
-}
-
 // GetStreakStats calculates the current and best streaks of consecutive work days.
 // A streak is consecutive days with at least one 'work' session.
-func (r *SessionRepo) GetStreakStats() (StreakStats, error) {
+func (r *SessionRepo) GetStreakStats(task string) (StreakStats, error) {
 	var dates []string
 
 	if err := r.db.Select(
@@ -97,8 +81,10 @@ func (r *SessionRepo) GetStreakStats() (StreakStats, error) {
 		SELECT DISTINCT date(started_at) AS day
 		FROM sessions
 		WHERE type = 'work'
+			AND (? = '' OR COALESCE(NULLIF(task, ''), 'work') = ?)
 		ORDER BY day DESC;
 		`,
+		task, task,
 	); err != nil {
 		return StreakStats{}, err
 	}
@@ -106,10 +92,8 @@ func (r *SessionRepo) GetStreakStats() (StreakStats, error) {
 	return calculateStreak(dates), nil
 }
 
-// retrieves daily work duration statistics between the specified dates.
-// from and to are inclusive.
-// The results are normalized to include all days in the range.
-func (r *SessionRepo) getDailyStats(from, to time.Time) ([]DailyStat, error) {
+// GetDailyStats retrieves task-filtered daily work durations for an inclusive range.
+func (r *SessionRepo) GetDailyStats(from, to time.Time, task string) ([]DailyStat, error) {
 	fromStr := from.Format(DateFormat)
 	toStr := to.Format(DateFormat)
 
@@ -123,11 +107,13 @@ func (r *SessionRepo) getDailyStats(from, to time.Time) ([]DailyStat, error) {
 			COALESCE(NULLIF(task, ''), 'work') AS task,
 			SUM(duration) AS duration
 		FROM sessions
-		WHERE type = 'work' AND date(started_at) BETWEEN ? AND ?
+		WHERE type = 'work'
+			AND date(started_at) BETWEEN ? AND ?
+			AND (? = '' OR COALESCE(NULLIF(task, ''), 'work') = ?)
 		GROUP BY day, COALESCE(NULLIF(task, ''), 'work')
 		ORDER BY day, task;
 		`,
-		fromStr, toStr,
+		fromStr, toStr, task, task,
 	); err != nil {
 		return nil, err
 	}

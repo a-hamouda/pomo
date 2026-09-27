@@ -82,7 +82,7 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 		repo = db.NewSessionRepo(database)
 	}
 
-	return Model{
+	m := Model{
 		progressBar:   progress.New(progress.WithDefaultGradient()),
 		confirmDialog: confirm.New(),
 		help:          help.New(),
@@ -105,6 +105,22 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 
 		repo: repo,
 	}
+	m.applyTaskColor(taskType, *task)
+	return m
+}
+
+func (m *Model) applyTaskColor(taskType config.TaskType, task config.Task) {
+	if taskType != config.WorkTask {
+		return
+	}
+
+	color := colors.TaskColor(task.Title)
+	m.progressBar = progress.New(
+		progress.WithSolidFill(string(color)),
+		progress.WithWidth(m.progressBar.Width),
+	)
+	m.progressBar.PercentageStyle = lipgloss.NewStyle().Foreground(color)
+	m.asciiTimerStyle = m.asciiTimerStyle.Foreground(color)
 }
 
 // lifecycleState holds mutable session lifecycle data shared across Model copies.

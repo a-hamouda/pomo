@@ -45,9 +45,9 @@ func NewHeatMap() HeatMap {
 	return HeatMap{}
 }
 
-func (h *HeatMap) View(stats []db.DailyStat) string {
+func (h *HeatMap) View(stats []db.DailyStat, through time.Time) string {
 	statsMap := buildStatsMap(stats)
-	grids := h.makeMonthGrids(statsMap)
+	grids := h.makeMonthGrids(statsMap, through)
 
 	// left align month labels
 	monthLabels := h.buildMonthLabels(grids)
@@ -109,14 +109,13 @@ func (h *HeatMap) buildGrids(grids []monthGrid) string {
 	return strings.Join(result, "\n")
 }
 
-func (h *HeatMap) makeMonthGrids(statsMap map[string]time.Duration) []monthGrid {
-	now := time.Now()
+func (h *HeatMap) makeMonthGrids(statsMap map[string]time.Duration, through time.Time) []monthGrid {
 	var grids []monthGrid
 
 	// build grid for each of the last N months
 	for i := NumberOfMonths - 1; i >= 0; i-- {
-		monthTime := now.AddDate(0, -i, 0)
-		grid := h.makeMonthGrid(monthTime.Year(), monthTime.Month(), now, statsMap)
+		monthTime := through.AddDate(0, -i, 0)
+		grid := h.makeMonthGrid(monthTime.Year(), monthTime.Month(), through, statsMap)
 		grids = append(grids, grid)
 	}
 

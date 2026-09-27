@@ -4,6 +4,7 @@ package stats
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Bahaaio/pomo/db"
 	"github.com/Bahaaio/pomo/ui/colors"
@@ -44,15 +45,19 @@ type Model struct {
 	width, height int
 	help          help.Model
 	quitting      bool
+	periodEnd     time.Time
+	taskIndex     int
 }
 
 func New() Model {
+	now := time.Now()
 	return Model{
 		durationRatio: components.NewDurationRatio(durationRatioWidth),
 		barChart:      components.NewBarChart(barChartHeight),
 		heatMap:       components.NewHeatMap(),
 		streak:        components.NewStreak(),
 		help:          help.New(),
+		periodEnd:     time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
 	}
 }
 
@@ -62,58 +67,62 @@ type statsMsg struct {
 	monthlyStats []db.DailyStat
 	streakStats  db.StreakStats
 	taskStats    []db.TaskStat
+	periodEnd    time.Time
+	task         string
 }
 
 type errMsg struct {
-	err error
+	err       error
+	periodEnd time.Time
+	task      string
 }
 
-// fetchStats retrieves statistics from the database and returns them as a statsMsg.
-// If an error occurs, it returns an errMsg instead.
-func fetchStats() tea.Msg {
-	database, err := db.Connect()
-	if err != nil {
-		return errMsg{err: errors.New("failed to connect to the database")}
-	}
+func fetchStats(periodEnd time.Time, task string) tea.Cmd {
+	return func() tea.Msg {
+		database, err := db.Connect()
+		if err != nil {
+			return errMsg{err: errors.New("failed to connect to the database"), periodEnd: periodEnd, task: task}
+		}
+		defer database.Close()
 
-	repo := db.NewSessionRepo(database)
+		repo := db.NewSessionRepo(database)
 
-	stats, err := repo.GetAllTimeStats()
-	if err != nil {
-		return errMsg{err: errors.New("failed to fetch all-time stats")}
-	}
+		stats, err := repo.GetAllTimeStats()
+		if err != nil {
+			return errMsg{err: errors.New("failed to fetch all-time stats"), periodEnd: periodEnd, task: task}
+		}
 
-	weeklyStats, err := repo.GetWeeklyStats()
-	if err != nil {
-		return errMsg{err: errors.New("failed to fetch weekly stats")}
-	}
+		firstMonth := time.Date(periodEnd.Year(), periodEnd.Month(), 1, 0, 0, 0, 0, periodEnd.Location()).AddDate(0, -components.NumberOfMonths+1, 0)
+		dailyStats, err := repo.GetDailyStats(firstMonth, periodEnd, task)
+		if err != nil {
+			return errMsg{err: errors.New("failed to fetch daily stats"), periodEnd: periodEnd, task: task}
+		}
+		weeklyStats := dailyStats[max(0, len(dailyStats)-7):]
 
-	monthlyStats, err := repo.GetLastMonthsStats(components.NumberOfMonths)
-	if err != nil {
-		return errMsg{err: errors.New("failed to fetch heatmap stats")}
-	}
+		streakStats, err := repo.GetStreakStats(task)
+		if err != nil {
+			return errMsg{err: errors.New("failed to fetch streak stats"), periodEnd: periodEnd, task: task}
+		}
 
-	streakStats, err := repo.GetStreakStats()
-	if err != nil {
-		return errMsg{err: errors.New("failed to fetch streak stats")}
-	}
+		taskStats, err := repo.GetTaskStats()
+		if err != nil {
+			return errMsg{err: errors.New("failed to fetch task stats"), periodEnd: periodEnd, task: task}
+		}
 
-	taskStats, err := repo.GetTaskStats()
-	if err != nil {
-		return errMsg{err: errors.New("failed to fetch task stats")}
-	}
-
-	return statsMsg{
-		allTimeStats: stats,
-		weeklyStats:  weeklyStats,
-		monthlyStats: monthlyStats,
-		streakStats:  streakStats,
-		taskStats:    taskStats,
+		return statsMsg{
+			allTimeStats: stats,
+			weeklyStats:  weeklyStats,
+			monthlyStats: dailyStats,
+			streakStats:  streakStats,
+			taskStats:    taskStats,
+			periodEnd:    periodEnd,
+			task:         task,
+		}
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return fetchStats
+	return fetchStats(m.periodEnd, m.selectedTask())
 }
 
 func (m Model) View() string {
@@ -126,6 +135,14 @@ func (m Model) View() string {
 	}
 
 	title := "Pomodoro statistics"
+	periodStart := m.periodEnd.AddDate(0, 0, -6)
+	filter := m.selectedTask()
+	if filter == "" {
+		filter = "All tasks"
+	} else {
+		filter = lipgloss.NewStyle().Foreground(colors.TaskColor(filter)).Render(filter)
+	}
+	period := fmt.Sprintf("%s - %s  ·  %s", periodStart.Format("Jan 2"), m.periodEnd.Format("Jan 2, 2006"), filter)
 
 	durationRatio := m.durationRatio.View(
 		m.allTimeStats.TotalWorkDuration,
@@ -133,10 +150,10 @@ func (m Model) View() string {
 	)
 
 	streak := m.streak.View(m.streakStats)
-	tasks := renderTaskStats(m.taskStats)
+	tasks := renderTaskStats(m.taskStats, m.selectedTask())
 
 	chart := m.barChart.View(m.weeklyStats)
-	hMap := m.heatMap.View(m.monthlyStats)
+	hMap := m.heatMap.View(m.monthlyStats, m.periodEnd)
 
 	charts := lipgloss.JoinHorizontal(lipgloss.Bottom, chart, "   ", hMap)
 
@@ -146,7 +163,9 @@ func (m Model) View() string {
 		lipgloss.JoinVertical(
 			lipgloss.Center,
 			title,
-			"\n\n",
+			period,
+			"\n",
+			"All-time work / break",
 			durationRatio,
 			"",
 			streak,
@@ -163,6 +182,9 @@ func (m Model) View() string {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case statsMsg:
+		if !sameDay(msg.periodEnd, m.periodEnd) || msg.task != m.selectedTask() {
+			return m, nil
+		}
 		m.allTimeStats = msg.allTimeStats
 		m.weeklyStats = msg.weeklyStats
 		m.monthlyStats = msg.monthlyStats
@@ -170,10 +192,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.taskStats = msg.taskStats
 		return m, nil
 	case errMsg:
+		if !sameDay(msg.periodEnd, m.periodEnd) || msg.task != m.selectedTask() {
+			return m, nil
+		}
 		m.err = msg.err
 		return m, nil
 	case tea.KeyMsg:
-		return m, handleKeys(msg)
+		return m, m.handleKeys(msg)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -183,14 +208,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func renderTaskStats(stats []db.TaskStat) string {
+func renderTaskStats(stats []db.TaskStat, selected string) string {
 	if len(stats) == 0 {
 		return ""
 	}
 
-	lines := []string{"Tasks"}
+	lines := []string{"All-time tasks"}
 	for _, stat := range stats {
-		label := lipgloss.NewStyle().Foreground(colors.TaskColor(stat.Task)).Render("■ " + stat.Task)
+		prefix := "  "
+		if stat.Task == selected {
+			prefix = "› "
+		}
+		label := lipgloss.NewStyle().Foreground(colors.TaskColor(stat.Task)).Render(prefix + "■ " + stat.Task)
 		lines = append(lines, fmt.Sprintf("%s  %v", label, stat.Duration))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
@@ -218,10 +247,45 @@ func (m *Model) buildErrorMessage() string {
 	)
 }
 
-func handleKeys(msg tea.KeyMsg) tea.Cmd {
+func (m Model) selectedTask() string {
+	if m.taskIndex == 0 || m.taskIndex > len(m.taskStats) {
+		return ""
+	}
+	return m.taskStats[m.taskIndex-1].Task
+}
+
+func (m *Model) handleKeys(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, Keys.Quit):
 		return tea.Quit
+	case key.Matches(msg, Keys.PreviousPeriod):
+		m.periodEnd = m.periodEnd.AddDate(0, 0, -7)
+	case key.Matches(msg, Keys.NextPeriod):
+		today := startOfDay(time.Now())
+		m.periodEnd = m.periodEnd.AddDate(0, 0, 7)
+		if m.periodEnd.After(today) {
+			m.periodEnd = today
+		}
+	case key.Matches(msg, Keys.Today):
+		m.periodEnd = startOfDay(time.Now())
+	case key.Matches(msg, Keys.PreviousTask):
+		m.taskIndex--
+		if m.taskIndex < 0 {
+			m.taskIndex = len(m.taskStats)
+		}
+	case key.Matches(msg, Keys.NextTask):
+		m.taskIndex = (m.taskIndex + 1) % (len(m.taskStats) + 1)
+	default:
+		return nil
 	}
-	return nil
+	m.err = nil
+	return fetchStats(m.periodEnd, m.selectedTask())
+}
+
+func startOfDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+func sameDay(a, b time.Time) bool {
+	return a.Format(db.DateFormat) == b.Format(db.DateFormat)
 }

@@ -39,12 +39,20 @@ func TestTaskStatsWithLegacyDatabase(t *testing.T) {
 	if err := repo.CreateSession(now, 15*time.Minute, WorkSession, "Other"); err != nil {
 		t.Fatal(err)
 	}
-	weekly, err := repo.GetWeeklyStats()
+	weekly, err := repo.GetDailyStats(now, now, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	today := weekly[len(weekly)-1]
 	if today.WorkDuration != 45*time.Minute || len(today.Tasks) != 2 {
 		t.Fatalf("unexpected daily task stats: %#v", today)
+	}
+
+	filtered, err := repo.GetDailyStats(now, now, "Other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filtered[0].WorkDuration != 15*time.Minute || len(filtered[0].Tasks) != 1 || filtered[0].Tasks[0].Task != "Other" {
+		t.Fatalf("unexpected filtered stats: %#v", filtered)
 	}
 }

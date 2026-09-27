@@ -32,12 +32,13 @@ func (m *Model) buildConfirmDialogView() string {
 
 func (m *Model) buildMainContent() string {
 	timeLeft := m.buildTimeLeft()
+	title := m.asciiTimerStyle.Render(m.currentTask.Title)
 
 	if m.useTimerArt {
-		return timeLeft + "\n\n" + m.currentTask.Title
+		return timeLeft + "\n\n" + title
 	}
 
-	content := m.currentTask.Title
+	content := title
 	if !m.timer.Timedout() {
 		content += separator + timeLeft
 	}
@@ -84,17 +85,12 @@ func (m *Model) buildTimeLeft() string {
 
 	if m.useTimerArt {
 		time = ascii.RenderNumber(time, m.timerFont)
-
-		// remove color on pause
-		if m.sessionState == Paused {
-			noColor := m.asciiTimerStyle.Foreground(colors.PauseFg)
-			return noColor.Render(time)
-		}
-
-		return m.asciiTimerStyle.Render(time)
 	}
 
-	return time
+	if m.sessionState == Paused {
+		return m.asciiTimerStyle.Foreground(colors.PauseFg).Render(time)
+	}
+	return m.asciiTimerStyle.Render(time)
 }
 
 func (m *Model) buildHelpView() string {

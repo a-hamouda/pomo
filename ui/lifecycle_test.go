@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Bahaaio/pomo/config"
+	"github.com/Bahaaio/pomo/ui/colors"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
@@ -166,6 +167,20 @@ func TestOnStartNewSession(t *testing.T) {
 	m.startSession(config.BreakTask, next, false)
 	assert.Eventually(t, func() bool { return startLog.count() == 2 }, 3*time.Second, 10*time.Millisecond,
 		"a new session should invoke its own onStart")
+}
+
+func TestWorkTaskColorPersistsThroughBreak(t *testing.T) {
+	work := config.Task{Title: "OCP Java", Duration: 25 * time.Minute}
+	m := newLifecycleTestModel(work)
+	m.progressBar.Width = 70
+
+	m.startSession(config.WorkTask, work, false)
+	want := string(colors.TaskColor(work.Title))
+	assert.Equal(t, want, m.progressBar.FullColor)
+	assert.Equal(t, 70, m.progressBar.Width)
+
+	m.startSession(config.BreakTask, config.Task{Title: "break", Duration: 5 * time.Minute}, false)
+	assert.Equal(t, want, m.progressBar.FullColor)
 }
 
 func TestOnStartCancelledOnNextSession(t *testing.T) {

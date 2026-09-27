@@ -296,6 +296,9 @@ func (m *Model) startSession(taskType config.TaskType, task config.Task, isShort
 	m.isShortSession = isShortSession
 	m.currentTaskType = taskType
 	m.currentTask = task
+	if !isShortSession {
+		m.applyTaskColor(taskType, task)
+	}
 
 	m.elapsed = 0
 	m.duration = m.currentTask.Duration
