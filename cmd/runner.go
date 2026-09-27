@@ -23,6 +23,16 @@ func runTask(taskType config.TaskType, cmd *cobra.Command) {
 		die(err)
 	}
 
+	if taskType == config.WorkTask && len(cmd.Flags().Args()) == 0 && !cmd.Flags().Changed("title") {
+		start, err := configurePomodoro()
+		if err != nil {
+			die(err)
+		}
+		if !start {
+			return
+		}
+	}
+
 	log.Printf("starting %v session: %v", taskType.GetTask().Title, taskType.GetTask().Duration)
 
 	m := ui.NewModel(taskType, config.C)

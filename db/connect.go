@@ -72,6 +72,10 @@ func createSchema(db *sqlx.DB) error {
 			return err
 		}
 	}
+	if _, err := db.Exec(`INSERT OR IGNORE INTO tasks (name)
+		SELECT DISTINCT COALESCE(NULLIF(task, ''), 'work') FROM sessions WHERE type = 'work'`); err != nil {
+		return err
+	}
 	log.Println("created the schema")
 
 	return nil

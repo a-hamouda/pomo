@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS sessions(
 	duration INTEGER NOT NULL,
 	started_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS tasks(
+	name TEXT PRIMARY KEY,
+	color TEXT NOT NULL DEFAULT ''
+);
 `
 
 type Session struct {
@@ -38,7 +42,13 @@ type DailyStat struct {
 
 type TaskStat struct {
 	Task     string        `db:"task"`
+	Color    string        `db:"color"`
 	Duration time.Duration `db:"duration"`
+}
+
+type SavedTask struct {
+	Name  string `db:"name"`
+	Color string `db:"color"`
 }
 
 type StreakStats struct {

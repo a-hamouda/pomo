@@ -65,11 +65,13 @@ _Note: Actual notification appearance varies by operating system and desktop env
 Work sessions:
 
 ```bash
-pomo                    # work session
+pomo                    # configure and start interactively
 pomo 30m                # 30m work session
 pomo 45m 15m            # 45m work with 15m break
 pomo -t "write report"  # work session with custom title (or --title)
 ```
+
+The interactive setup lets you reuse an existing task or create one with a custom color, then accept or change the configured work and break durations.
 
 Break sessions:
 

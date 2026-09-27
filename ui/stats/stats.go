@@ -140,7 +140,7 @@ func (m Model) View() string {
 	if filter == "" {
 		filter = "All tasks"
 	} else {
-		filter = lipgloss.NewStyle().Foreground(colors.TaskColor(filter)).Render(filter)
+		filter = lipgloss.NewStyle().Foreground(colors.TaskColor(filter, m.taskStats[m.taskIndex-1].Color)).Render(filter)
 	}
 	period := fmt.Sprintf("%s - %s  ·  %s", periodStart.Format("Jan 2"), m.periodEnd.Format("Jan 2, 2006"), filter)
 
@@ -219,7 +219,7 @@ func renderTaskStats(stats []db.TaskStat, selected string) string {
 		if stat.Task == selected {
 			prefix = "› "
 		}
-		label := lipgloss.NewStyle().Foreground(colors.TaskColor(stat.Task)).Render(prefix + "■ " + stat.Task)
+		label := lipgloss.NewStyle().Foreground(colors.TaskColor(stat.Task, stat.Color)).Render(prefix + "■ " + stat.Task)
 		lines = append(lines, fmt.Sprintf("%s  %v", label, stat.Duration))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)

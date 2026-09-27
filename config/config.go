@@ -33,6 +33,7 @@ type Notification struct {
 
 type Task struct {
 	Title        string
+	Color        string
 	Duration     time.Duration
 	OnStart      [][]string
 	OnEnd        [][]string

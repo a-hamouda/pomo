@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Bahaaio/pomo/config"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
@@ -76,6 +77,22 @@ func TestParseArguments(t *testing.T) {
 			assert.Equal(t, tt.expectedBreakDuration, breakTask.Duration)
 		}
 	}
+}
+
+func TestSetupUsesConfigDefaults(t *testing.T) {
+	original := config.C
+	t.Cleanup(func() { config.C = original })
+	config.C.Work.Title = "Configured task"
+	config.C.Work.Duration = 30 * time.Minute
+	config.C.Break.Duration = 15 * time.Minute
+
+	model := newSetupModel(nil)
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.Contains(t, updated.View(), "Configured task")
+	assert.Contains(t, updated.View(), "30m0s")
+
+	updated, _ = updated.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.Contains(t, updated.View(), "15m0s")
 }
 
 func TestParseFlags(t *testing.T) {

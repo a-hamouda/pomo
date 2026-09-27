@@ -170,12 +170,12 @@ func TestOnStartNewSession(t *testing.T) {
 }
 
 func TestWorkTaskColorPersistsThroughBreak(t *testing.T) {
-	work := config.Task{Title: "OCP Java", Duration: 25 * time.Minute}
+	work := config.Task{Title: "Write report", Color: "#123456", Duration: 25 * time.Minute}
 	m := newLifecycleTestModel(work)
 	m.progressBar.Width = 70
 
 	m.startSession(config.WorkTask, work, false)
-	want := string(colors.TaskColor(work.Title))
+	want := string(colors.TaskColor(work.Title, work.Color))
 	assert.Equal(t, want, m.progressBar.FullColor)
 	assert.Equal(t, 70, m.progressBar.Width)
 

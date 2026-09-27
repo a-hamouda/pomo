@@ -24,7 +24,7 @@ var rootCmd = &cobra.Command{
 Start a work session with the default duration from your config file,
 or specify a custom duration. The timer shows a progress bar and sends
 desktop notifications when complete.`,
-	Example: `  pomo                   # Start work session
+	Example: `  pomo                   # Configure and start interactively
   pomo 1h15m             # Start 1 hour 15 minute session
   pomo 45m 15m           # Start 45 minute work session with 15 minute break
   pomo -t "write report" # work session with custom title (or --title)`,

@@ -10,23 +10,23 @@ import (
 )
 
 func TestTaskColor(t *testing.T) {
-	if colors.TaskColor("OCP Java") == colors.TaskColor("Other") {
+	if colors.TaskColor("Write report") == colors.TaskColor("Other") {
 		t.Fatal("different task names should have different colors")
 	}
-	if colors.TaskColor("OCP Java") != colors.TaskColor("OCP Java") {
+	if colors.TaskColor("Write report") != colors.TaskColor("Write report") {
 		t.Fatal("task colors should be stable")
 	}
 }
 
 func TestNavigationAndTaskFilter(t *testing.T) {
 	m := New()
-	m.taskStats = []db.TaskStat{{Task: "OCP Java"}, {Task: "Other"}}
+	m.taskStats = []db.TaskStat{{Task: "Write report"}, {Task: "Other"}}
 	today := m.periodEnd
 
 	if cmd := m.handleKeys(tea.KeyMsg{Type: tea.KeyLeft}); cmd == nil || !m.periodEnd.Equal(today.AddDate(0, 0, -7)) {
 		t.Fatal("left should load the previous week")
 	}
-	if cmd := m.handleKeys(tea.KeyMsg{Type: tea.KeyDown}); cmd == nil || m.selectedTask() != "OCP Java" {
+	if cmd := m.handleKeys(tea.KeyMsg{Type: tea.KeyDown}); cmd == nil || m.selectedTask() != "Write report" {
 		t.Fatal("down should select the next task")
 	}
 	m.periodEnd = today

@@ -40,3 +40,8 @@ func TestValidHexColor(t *testing.T) {
 		})
 	}
 }
+
+func TestTaskColorOverride(t *testing.T) {
+	assert.Equal(t, lipgloss.Color("#123456"), colors.TaskColor("task", "#123456"))
+	assert.Equal(t, colors.TaskColor("task"), colors.TaskColor("task", "invalid"))
+}

@@ -80,6 +80,11 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 		sessionSummary.SetDatabaseUnavailable()
 	} else {
 		repo = db.NewSessionRepo(database)
+		if taskType == config.WorkTask && task.Color == "" {
+			if savedTask, err := repo.GetTask(task.Title); err == nil {
+				task.Color = savedTask.Color
+			}
+		}
 	}
 
 	m := Model{
@@ -114,7 +119,7 @@ func (m *Model) applyTaskColor(taskType config.TaskType, task config.Task) {
 		return
 	}
 
-	color := colors.TaskColor(task.Title)
+	color := colors.TaskColor(task.Title, task.Color)
 	m.progressBar = progress.New(
 		progress.WithSolidFill(string(color)),
 		progress.WithWidth(m.progressBar.Width),

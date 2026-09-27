@@ -77,7 +77,14 @@ func GetColor(color string) lipgloss.TerminalColor {
 	return lipgloss.Color(color)
 }
 
-func TaskColor(task string) lipgloss.Color {
+func TaskColor(task string, custom ...string) lipgloss.Color {
+	if len(custom) > 0 && IsValid(custom[0]) {
+		return lipgloss.Color(custom[0])
+	}
 	hash := sha256.Sum256([]byte(task))
 	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", 96+hash[0]%160, 96+hash[1]%160, 96+hash[2]%160))
+}
+
+func IsValid(color string) bool {
+	return validColorRegex != nil && validColorRegex.MatchString(color)
 }

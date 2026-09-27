@@ -131,15 +131,15 @@ func renderTaskBar(stat db.DailyStat, height int) string {
 	for row := range height {
 		position := time.Duration(float64(stat.WorkDuration) * (float64(height-row) - 0.5) / float64(height))
 		var elapsed time.Duration
-		task := stat.Tasks[len(stat.Tasks)-1].Task
+		task := stat.Tasks[len(stat.Tasks)-1]
 		for _, taskStat := range stat.Tasks {
 			elapsed += taskStat.Duration
 			if position <= elapsed {
-				task = taskStat.Task
+				task = taskStat
 				break
 			}
 		}
-		rows[row] = lipgloss.NewStyle().Foreground(colors.TaskColor(task)).Render(bar)
+		rows[row] = lipgloss.NewStyle().Foreground(colors.TaskColor(task.Task, task.Color)).Render(bar)
 	}
 	return strings.Join(rows, "\n")
 }
