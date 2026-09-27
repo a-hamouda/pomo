@@ -2,6 +2,8 @@
 package colors
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"log"
 	"regexp"
 
@@ -73,4 +75,9 @@ func GetColor(color string) lipgloss.TerminalColor {
 
 	log.Println("using color:", color)
 	return lipgloss.Color(color)
+}
+
+func TaskColor(task string) lipgloss.Color {
+	hash := sha256.Sum256([]byte(task))
+	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", 96+hash[0]%160, 96+hash[1]%160, 96+hash[2]%160))
 }

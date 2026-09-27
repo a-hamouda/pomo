@@ -1,12 +1,16 @@
-package stats
+package stats_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Bahaaio/pomo/ui/colors"
+)
 
 func TestTaskColor(t *testing.T) {
-	if taskColor("OCP Java") == taskColor("Other") {
+	if colors.TaskColor("OCP Java") == colors.TaskColor("Other") {
 		t.Fatal("different task names should have different colors")
 	}
-	if taskColor("OCP Java") != taskColor("OCP Java") {
+	if colors.TaskColor("OCP Java") != colors.TaskColor("OCP Java") {
 		t.Fatal("task colors should be stable")
 	}
 }

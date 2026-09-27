@@ -2,7 +2,6 @@
 package stats
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -191,15 +190,10 @@ func renderTaskStats(stats []db.TaskStat) string {
 
 	lines := []string{"Tasks"}
 	for _, stat := range stats {
-		label := lipgloss.NewStyle().Foreground(taskColor(stat.Task)).Render("■ " + stat.Task)
+		label := lipgloss.NewStyle().Foreground(colors.TaskColor(stat.Task)).Render("■ " + stat.Task)
 		lines = append(lines, fmt.Sprintf("%s  %v", label, stat.Duration))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
-}
-
-func taskColor(task string) lipgloss.Color {
-	hash := sha256.Sum256([]byte(task))
-	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", 96+hash[0]%160, 96+hash[1]%160, 96+hash[2]%160))
 }
 
 func (m *Model) buildErrorMessage() string {

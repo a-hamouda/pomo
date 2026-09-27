@@ -113,18 +113,19 @@ func (r *SessionRepo) getDailyStats(from, to time.Time) ([]DailyStat, error) {
 	fromStr := from.Format(DateFormat)
 	toStr := to.Format(DateFormat)
 
-	var stats []DailyStat
+	var stats []dailyTaskStat
 
 	if err := r.db.Select(
 		&stats,
 		`
 		SELECT
 			date(started_at) AS day,
-			COALESCE(SUM(duration * (type = 'work')), 0) AS work_duration
+			COALESCE(NULLIF(task, ''), 'work') AS task,
+			SUM(duration) AS duration
 		FROM sessions
-		WHERE date(started_at) BETWEEN ? AND ?
-		GROUP BY day
-		ORDER BY day;
+		WHERE type = 'work' AND date(started_at) BETWEEN ? AND ?
+		GROUP BY day, COALESCE(NULLIF(task, ''), 'work')
+		ORDER BY day, task;
 		`,
 		fromStr, toStr,
 	); err != nil {
@@ -134,23 +135,30 @@ func (r *SessionRepo) getDailyStats(from, to time.Time) ([]DailyStat, error) {
 	return r.normalizeStats(from, to, stats), nil
 }
 
+type dailyTaskStat struct {
+	Date     string        `db:"day"`
+	Task     string        `db:"task"`
+	Duration time.Duration `db:"duration"`
+}
+
 // ensures that there is a DailyStat entry for each day
-func (r *SessionRepo) normalizeStats(from, to time.Time, stats []DailyStat) []DailyStat {
+func (r *SessionRepo) normalizeStats(from, to time.Time, stats []dailyTaskStat) []DailyStat {
 	m := make(map[string]DailyStat)
 
 	for _, stat := range stats {
-		m[stat.Date] = stat
+		day := m[stat.Date]
+		day.WorkDuration += stat.Duration
+		day.Tasks = append(day.Tasks, TaskStat{Task: stat.Task, Duration: stat.Duration})
+		m[stat.Date] = day
 	}
 
 	var normalized []DailyStat
 	current := from
 	for !current.After(to) {
 		day := current.Format(DateFormat)
-
-		normalized = append(normalized, DailyStat{
-			Date:         day,
-			WorkDuration: m[day].WorkDuration,
-		})
+		stat := m[day]
+		stat.Date = day
+		normalized = append(normalized, stat)
 
 		current = current.AddDate(0, 0, 1) // next day
 	}

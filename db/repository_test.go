@@ -22,7 +22,9 @@ func TestTaskStatsWithLegacyDatabase(t *testing.T) {
 	}
 
 	repo := NewSessionRepo(database)
-	if err := repo.CreateSession(time.Now(), 30*time.Minute, WorkSession, "OCP Java"); err != nil {
+	now := time.Now()
+	now = time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, now.Location())
+	if err := repo.CreateSession(now, 30*time.Minute, WorkSession, "OCP Java"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -32,5 +34,17 @@ func TestTaskStatsWithLegacyDatabase(t *testing.T) {
 	}
 	if len(stats) != 1 || stats[0].Task != "OCP Java" || stats[0].Duration != 30*time.Minute {
 		t.Fatalf("unexpected task stats: %#v", stats)
+	}
+
+	if err := repo.CreateSession(now, 15*time.Minute, WorkSession, "Other"); err != nil {
+		t.Fatal(err)
+	}
+	weekly, err := repo.GetWeeklyStats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	today := weekly[len(weekly)-1]
+	if today.WorkDuration != 45*time.Minute || len(today.Tasks) != 2 {
+		t.Fatalf("unexpected daily task stats: %#v", today)
 	}
 }

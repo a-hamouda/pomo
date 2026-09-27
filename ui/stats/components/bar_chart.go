@@ -114,11 +114,34 @@ func (b *BarChart) buildBars(stats []db.DailyStat, maxDuration time.Duration) st
 		}
 
 		barHeight := int((float64(stat.WorkDuration) / float64(maxDuration)) * float64(b.barHeight))
-		bar := renderBar(barHeight)
+		bar := renderTaskBar(stat, barHeight)
 		bars = append(bars, bar, spacer)
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, bars...)
+}
+
+func renderTaskBar(stat db.DailyStat, height int) string {
+	if height == 0 || len(stat.Tasks) == 0 {
+		return renderBar(height)
+	}
+
+	bar := strings.Repeat(barChar, barThickness)
+	rows := make([]string, height)
+	for row := range height {
+		position := time.Duration(float64(stat.WorkDuration) * (float64(height-row) - 0.5) / float64(height))
+		var elapsed time.Duration
+		task := stat.Tasks[len(stat.Tasks)-1].Task
+		for _, taskStat := range stat.Tasks {
+			elapsed += taskStat.Duration
+			if position <= elapsed {
+				task = taskStat.Task
+				break
+			}
+		}
+		rows[row] = lipgloss.NewStyle().Foreground(colors.TaskColor(task)).Render(bar)
+	}
+	return strings.Join(rows, "\n")
 }
 
 func (b *BarChart) buildYAxis(maxDuration, scale time.Duration) string {

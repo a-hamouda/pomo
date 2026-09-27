@@ -33,6 +33,7 @@ type AllTimeStats struct {
 type DailyStat struct {
 	Date         string        `db:"day"`
 	WorkDuration time.Duration `db:"work_duration"`
+	Tasks        []TaskStat
 }
 
 type TaskStat struct {
