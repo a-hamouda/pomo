@@ -10,6 +10,7 @@ var schema = `
 CREATE TABLE IF NOT EXISTS sessions(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	type TEXT NOT NULL,
+	task TEXT NOT NULL DEFAULT '',
 	duration INTEGER NOT NULL,
 	started_at TEXT NOT NULL
 );
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS sessions(
 type Session struct {
 	ID        int           `db:"id"`
 	Type      string        `db:"type"`
+	Task      string        `db:"task"`
 	Duration  time.Duration `db:"duration"`
 	StartedAt time.Time     `db:"started_at"`
 }
@@ -31,6 +33,11 @@ type AllTimeStats struct {
 type DailyStat struct {
 	Date         string        `db:"day"`
 	WorkDuration time.Duration `db:"work_duration"`
+}
+
+type TaskStat struct {
+	Task     string        `db:"task"`
+	Duration time.Duration `db:"duration"`
 }
 
 type StreakStats struct {

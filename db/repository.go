@@ -17,19 +17,36 @@ func NewSessionRepo(db *sqlx.DB) *SessionRepo {
 }
 
 // CreateSession inserts a new session record into the database.
-func (r *SessionRepo) CreateSession(startedAt time.Time, duration time.Duration, sessionType SessionType) error {
+func (r *SessionRepo) CreateSession(startedAt time.Time, duration time.Duration, sessionType SessionType, task string) error {
 	startedAtStr := startedAt.Format(time.RFC3339)
 
 	if _, err := r.db.Exec(
-		"insert into sessions (started_at, duration, type) values (?, ?, ?);",
+		"insert into sessions (started_at, duration, type, task) values (?, ?, ?, ?);",
 		startedAtStr,
 		duration,
 		sessionType,
+		task,
 	); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// GetTaskStats retrieves total work duration grouped by task.
+func (r *SessionRepo) GetTaskStats() ([]TaskStat, error) {
+	var stats []TaskStat
+	err := r.db.Select(
+		&stats,
+		`SELECT
+			COALESCE(NULLIF(task, ''), 'work') AS task,
+			SUM(duration) AS duration
+		FROM sessions
+		WHERE type = 'work'
+		GROUP BY COALESCE(NULLIF(task, ''), 'work')
+		ORDER BY duration DESC, task;`,
+	)
+	return stats, err
 }
 
 // GetAllTimeStats retrieves aggregate statistics across all sessions.

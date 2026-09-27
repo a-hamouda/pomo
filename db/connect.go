@@ -62,6 +62,16 @@ func createSchema(db *sqlx.DB) error {
 	if _, err := db.Exec(schema); err != nil {
 		return err
 	}
+
+	var hasTask bool
+	if err := db.Get(&hasTask, "SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'task'"); err != nil {
+		return err
+	}
+	if !hasTask {
+		if _, err := db.Exec("ALTER TABLE sessions ADD COLUMN task TEXT NOT NULL DEFAULT ''"); err != nil {
+			return err
+		}
+	}
 	log.Println("created the schema")
 
 	return nil

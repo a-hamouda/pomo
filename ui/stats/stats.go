@@ -2,7 +2,9 @@
 package stats
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 
 	"github.com/Bahaaio/pomo/db"
 	"github.com/Bahaaio/pomo/ui/colors"
@@ -37,6 +39,7 @@ type Model struct {
 	weeklyStats  []db.DailyStat
 	monthlyStats []db.DailyStat
 	streakStats  db.StreakStats
+	taskStats    []db.TaskStat
 
 	// state
 	width, height int
@@ -59,6 +62,7 @@ type statsMsg struct {
 	weeklyStats  []db.DailyStat
 	monthlyStats []db.DailyStat
 	streakStats  db.StreakStats
+	taskStats    []db.TaskStat
 }
 
 type errMsg struct {
@@ -95,11 +99,17 @@ func fetchStats() tea.Msg {
 		return errMsg{err: errors.New("failed to fetch streak stats")}
 	}
 
+	taskStats, err := repo.GetTaskStats()
+	if err != nil {
+		return errMsg{err: errors.New("failed to fetch task stats")}
+	}
+
 	return statsMsg{
 		allTimeStats: stats,
 		weeklyStats:  weeklyStats,
 		monthlyStats: monthlyStats,
 		streakStats:  streakStats,
+		taskStats:    taskStats,
 	}
 }
 
@@ -124,6 +134,7 @@ func (m Model) View() string {
 	)
 
 	streak := m.streak.View(m.streakStats)
+	tasks := renderTaskStats(m.taskStats)
 
 	chart := m.barChart.View(m.weeklyStats)
 	hMap := m.heatMap.View(m.monthlyStats)
@@ -140,6 +151,8 @@ func (m Model) View() string {
 			durationRatio,
 			"",
 			streak,
+			"",
+			tasks,
 			"\n",
 			charts,
 			"",
@@ -155,6 +168,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.weeklyStats = msg.weeklyStats
 		m.monthlyStats = msg.monthlyStats
 		m.streakStats = msg.streakStats
+		m.taskStats = msg.taskStats
 		return m, nil
 	case errMsg:
 		m.err = msg.err
@@ -168,6 +182,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		return m, nil
 	}
+}
+
+func renderTaskStats(stats []db.TaskStat) string {
+	if len(stats) == 0 {
+		return ""
+	}
+
+	lines := []string{"Tasks"}
+	for _, stat := range stats {
+		label := lipgloss.NewStyle().Foreground(taskColor(stat.Task)).Render("■ " + stat.Task)
+		lines = append(lines, fmt.Sprintf("%s  %v", label, stat.Duration))
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+func taskColor(task string) lipgloss.Color {
+	hash := sha256.Sum256([]byte(task))
+	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", 96+hash[0]%160, 96+hash[1]%160, 96+hash[2]%160))
 }
 
 func (m *Model) buildErrorMessage() string {
